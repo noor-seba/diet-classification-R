@@ -1,0 +1,404 @@
+---
+title: "Diets, Recipes And Their Nutrients"
+author: "Noor Seba"
+date: "2026-03-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<div style="background-color:#E8F0FE; padding:10px; border-radius:8px">
+### Introduction
+
+Ce projet vise à étudier la capacité des composantes nutritionnelles de recettes alimentaires à discriminer différents types de régimes. Le jeu de données utilisé provient de la plateforme Kaggle et regroupe un ensemble de recettes accompagnées d’informations nutritionnelles.
+
+Les données sont composées de 7804 observations ne présentant pas de valeurs manquantes pour les variables étudiées. La variable cible correspond au type de régime alimentaire, comportant cinq classes, tandis que les variables explicatives correspondent aux quantités de glucides, de protéines et de lipides présentes dans chaque recette. Une variable supplémentaire décrit également l’origine des plats selon 19 catégories.
+
+Ce projet s’inscrit dans une démarche de classification supervisée visant à comparer différentes méthodes permettant de prédire le type de régime alimentaire à partir de la composition nutritionnelle des recettes.
+
+### Objectif
+
+L’objectif de ce projet est de déterminer si les composantes alimentaires des recettes permettent de discriminer les cinq types de régimes étudiés. Pour répondre à cette question, plusieurs méthodes de classification supervisée seront mises en œuvre et comparées : l’analyse discriminante linéaire (LDA), la méthode des k plus proches voisins (kNN) et les arbres de classification (CART).
+
+
+### Plan
+
+PARTIE I – Exploration et prétraitement des données
+
+PARTIE II – Analyse discriminante linéaire (LDA)
+
+PARTIE III – Méthode des k plus proches voisins (kNN)
+
+PARTIE IV – Arbre de classification (CART)
+</div>
+
+
+---
+## PARTIE I – Exploration et prétraitement des données
+
+Dans cette première partie, nous explorons la structure des données et appliquons un prétraitement aux variables nutritionnelles avant les analyses de classification.
+
+```{r importation}
+data=read.csv("All_Diets.csv", header = TRUE,sep = ",",dec = ".")
+
+data_regime=data[,-c(1,2,3,7,8)]
+```
+
+```{r exploration}
+par(mfrow=c(1,3)) 
+boxplot(data$Protein.g.~data$Diet_type, main="Protein")
+boxplot(data$Carbs.g.~data$Diet_type, main="Carbs")
+boxplot(data$Fat.g.~data$Diet_type, main="Fat")
+
+matcor=cor(data_regime)
+matcor
+source("qq_fonctions_TP1.txt")
+pairs(data_regime,lower.panel=panel.smooth,upper.panel=panel.cor,diag.panel=panel.hist)
+```
+
+On observe sur les boxplots que certaines valeurs sont très élevées par rapport au reste des données. Ces valeurs extrêmes peuvent influencer les analyses de classification. Une transformation logarithmique est donc appliquée afin de réduire l’effet des valeurs élevées, de limiter l’asymétrie des distributions et d’améliorer la comparabilité des variables pour la suite des analyses.
+
+```{r pretraitement}
+data_regime$Protein_log <- log(data_regime$Protein.g. + 1)
+data_regime$Carbs_log <- log(data_regime$Carbs.g. + 1)
+data_regime$Fat_log <- log(data_regime$Fat.g. + 1)
+
+data_regime=data_regime[,-c(1:3)]
+```
+
+Après transformation logarithmique, seules les variables transformées ont été conservées pour les analyses de classification.
+
+```{r CentrageReduction}
+data_regime_cr=scale(data_regime, center=TRUE, scale=TRUE)
+boxplot(data_regime_cr, main="Distribution des données centrées et réduites") 
+```
+
+```{r ACP}
+resacpCr=princomp(data_regime,cor=TRUE,score=TRUE)
+summary(resacpCr)
+barplot(resacpCr$sdev^2, las=2)
+abline(h=1)
+1+2*sqrt((ncol(data_regime)-1)/(nrow(data_regime)-1))
+```
+
+```{r RepresentatioACP}
+par(mfrow=c(1,2))
+groupe=data$Diet_type
+groupe=as.factor(groupe)
+plot(resacpCr$scores[,c(1,2)],
+     main="Projection des individus",
+     xlab='CP1 (65.88%)',
+     ylab='CP2 (24.29%)',
+     col=groupe,pch=16)
+abline(h=0,v=0,lty=2,col="grey")
+legend("bottomleft",
+       legend=levels(groupe),
+       col=1:length(levels(groupe)),
+       pch=16,cex=0.5)
+
+covar=cor(data_regime,resacpCr$scores[,1:2])
+plot(covar[,1], covar[,2],
+     xlim=c(-1,1),
+     ylim=c(-1,1),
+     xlab="CP 1 (65.88%)",
+     ylab="CP 2 (24.29%)",
+     main="Représentation des variables",
+     type='n')
+
+text(covar[,1], covar[,2],
+     labels=colnames(data_regime),
+     cex=1,
+     pos=3)  
+
+abline(h=0,v=0,lty=2,col="grey")
+
+angles=seq(0,2*pi,length=1000)
+points(cos(angles),sin(angles),type="l",col="black")
+arrows(0, 0, covar[, 1] * 0.95, covar[, 2] * 0.95, length = 0.1, angle = 15) 
+```
+
+---
+## PARTIE II – Analyse discriminante linéaire (LDA)
+
+Nous appliquons une analyse discriminante linéaire afin d’étudier la capacité des variables nutritionnelles à discriminer les différents types de régimes alimentaires.
+
+Nous vérifions la variance des variables explicatives afin de s’assurer qu’elles présentent une variabilité suffisante pour être utilisées dans l’analyse discriminante.
+
+```{r LDA}
+variance = apply(data_regime, 2, var)
+variance
+
+data_regime= as.matrix(data_regime)
+gp=as.factor(data$Diet_type)
+table(gp)
+
+library(MASS)
+ldaRegime=lda(x=data_regime, grouping = gp)
+
+respred <- predict(ldaRegime, newdata = data_regime)
+```
+
+```{r BienClasse}
+mean(respred$class==gp) 
+tab_lda <- table(respred$class, gp)
+pourcentage_bien_classe <- diag(tab_lda) / colSums(tab_lda) * 100
+pourcentage_bien_classe
+```
+
+Afin d’évaluer la capacité du modèle LDA à discriminer les différents types de régimes alimentaires, nous avons calculé le pourcentage de bien classées pour chaque régime, ainsi que le pourcentage global de bonnes classifications.
+
+Le modèle présente un taux global de bonne classification d’environ 41,5 %, ce qui traduit une capacité de discrimination modérée des variables nutritionnelles pour distinguer les différents types de régimes.
+
+Plus précisément, le régime keto est le mieux identifié par le modèle, avec environ 68 % d’observations correctement classées. Le régime vegan présente également une performance satisfaisante, avec environ 56 % de bonnes classifications.
+
+En revanche, les régimes dash et mediterranean sont moins bien discriminés, avec respectivement environ 35 % et 39 % d’observations correctement classées. Le régime paleo est celui qui est le moins bien identifié par le modèle, avec seulement environ 5 % de bonnes classifications.
+
+```{r representation}
+par(mfrow=c(1,2)) 
+couleurs <- c("dash" = "red",
+              "keto" = "blue",
+              "mediterranean" = "green",
+              "paleo" = "orange",
+              "vegan" = "purple")
+
+plot(respred$x[,1:2],
+     col = couleurs[as.character(gp)],
+     pch = 16,
+     main = "Projection des individus sur le plan",
+     xlab = "LD1",
+     ylab = "LD2",
+     cex.main = 1,
+     cex.lab = 0.8)
+
+abline(v = 0, h = 0, lty = 2)
+
+legend("topright",
+       legend = names(couleurs),
+       col = couleurs,
+       pch = 16,
+       cex = 0.5)
+
+
+corvar=cor(data_regime, respred$x[,1:2])
+plot(corvar[,1],corvar[,2], xlim=c(-1,1),ylim=c(-1,1), 
+     main = "Représentation des variables", 
+     xlab="Axe 1", 
+     ylab="Axe 2",
+     cex.main = 1,
+     cex.lab = 0.8)
+text(corvar[,1],corvar[,2],labels=colnames(data_regime))
+abline(h=0,v=0,lty=2,col="grey")
+angles=seq(0,2*pi,length=1000)
+points(cos(angles),sin(angles),type="l",col="black")
+```
+
+Le premier graphique représente la projection des individus sur le plan formé par les deux premiers axes discriminants de l’analyse LDA. Chaque point correspond à une recette et la couleur indique le type de régime alimentaire associé.
+
+On observe que les différents régimes alimentaires se chevauchent fortement sur ce plan. Les observations appartenant aux différentes classes sont largement mélangées, ce qui indique que les variables nutritionnelles utilisées (glucides, protéines et lipides) ne permettent pas de séparer clairement les cinq types de régimes alimentaires dans l’espace discriminant.
+
+Le second graphique représente la contribution des variables nutritionnelles aux deux premiers axes discriminants.
+
+On observe que l’axe 1 est principalement associé à la variable des glucides, tandis que les variables protéines et lipides contribuent davantage à l’axe 2.
+
+Ces résultats indiquent que les macronutriments contribuent différemment à la séparation des régimes alimentaires, mais leur combinaison reste insuffisante pour obtenir une discrimination nette entre les classes.
+
+```{r ValidationCroisee}
+source("constCV.R")
+source("lda_CV.R")
+blocs=constCV(gp,2)
+table(gp[blocs[[1]]]) 
+table(gp[blocs[[2]]])
+
+length(unique(unlist(blocs)))
+lda_CV(X=data_regime,gp=gp,nbcv=2,nbrun=100)
+```
+
+Afin d’évaluer de manière plus robuste la capacité prédictive du modèle LDA, une validation croisée à deux blocs répétée 100 fois a été réalisée.
+
+Le taux moyen de bonne classification obtenu par validation croisée est d’environ 41,4 %. Ce résultat est très proche du taux de bonne classification obtenu précédemment sur l’ensemble des données (41,5 %), ce qui indique que le modèle ne présente pas de surapprentissage important.
+
+Ces résultats confirment que les variables nutritionnelles utilisées permettent une discrimination limitée des cinq types de régimes alimentaires. La performance du modèle LDA reste modérée, ce qui suggère que ces variables ne suffisent pas à elles seules à séparer clairement les différents régimes étudiés.
+
+Afin de compléter l'évaluation des performances du modèle LDA, plusieurs indicateurs de classification ont été calculés : l'accuracy, la preécision, le rappel et le score F1. Ces indicateurs permettront également de comparer les performances de la LDA avec celles des autres méthodes étudiées par la suite.
+
+```{r MetriqueLDA}
+accuracy_lda <- sum(diag(tab_lda)) / sum(tab_lda)
+
+precision_par_classe_lda <- diag(tab_lda) / rowSums(tab_lda)
+recall_par_classe_lda <- diag(tab_lda) / colSums(tab_lda)
+f1_par_classe_lda <- 2 * precision_par_classe_lda * recall_par_classe_lda / 
+  (precision_par_classe_lda + recall_par_classe_lda)
+
+precision_lda <- mean(precision_par_classe_lda, na.rm = TRUE)
+recall_lda <- mean(recall_par_classe_lda, na.rm = TRUE)
+f1_lda <- mean(f1_par_classe_lda, na.rm = TRUE)
+
+metrics_lda <- c(
+  Accuracy = accuracy_lda,
+  Precision = precision_lda,
+  Recall = recall_lda,
+  F1 = f1_lda)
+metrics_lda
+```
+
+Les valeurs obtenues confirment que les performances globales du modèle LDA restent modérées, ce qui est cohérent avec les résultats observés précédemment.
+
+<div style="background-color:#E8F0FE; padding:10px; border-radius:8px">
+### Conclusion
+L’analyse discriminante linéaire montre que les variables nutritionnelles permettent de discriminer partiellement certains régimes alimentaires, notamment le régime keto et dans une moindre mesure le régime vegan. Toutefois, le chevauchement important entre les classes ainsi que le taux global de classification modéré indiquent que ces variables ne suffisent pas à elles seules à distinguer clairement l’ensemble des régimes étudiés. Ces résultats justifient l’utilisation d’autres méthodes de classification afin d’améliorer la qualité de discrimination.
+</div>
+
+---
+## PARTIE III – Méthode des k plus proches voisins (kNN)
+```{r ChoixK}
+library(class)
+source("knn_CV.r")
+
+resknn <- knn(train=data_regime, test=data_regime, cl=gp, k=3)
+mean(resknn==gp)
+
+enrres <- numeric(20)
+for (i in 1:20)
+{
+  enrres[i] <- knn_CV(X=data_regime, gp=gp, nbcv=4, nbrun=30, k=i, l=0)
+}
+plot(1:20, enrres, type="b")
+
+knn_CV(X=data_regime, gp=gp, nbcv=4, nbrun=100, k=15, l=0)
+```
+```{r PredictionsKNN}
+set.seed(123)
+
+id_train <- sample(1:nrow(data_regime), 0.75 * nrow(data_regime))
+
+Xtrain <- data_regime[id_train, ]
+Xtest  <- data_regime[-id_train, ]
+
+Ytrain <- gp[id_train]
+Ytest  <- gp[-id_train]
+
+pred_knn <- knn(train = Xtrain,
+                test = Xtest,
+                cl = Ytrain,
+                k = 15)
+tab_knn <- table(Pred = pred_knn, Reel = Ytest)
+tab_knn
+```
+
+
+```{r MetriqueKNN}
+accuracy_knn <- sum(diag(tab_knn)) / sum(tab_knn)
+precision_par_classe_knn <- diag(tab_knn) / rowSums(tab_knn)
+recall_par_classe_knn <- diag(tab_knn) / colSums(tab_knn)
+f1_par_classe_knn <- 2 * precision_par_classe_knn * recall_par_classe_knn / 
+  (precision_par_classe_knn + recall_par_classe_knn)
+
+precision_knn <- mean(precision_par_classe_knn, na.rm = TRUE)
+recall_knn <- mean(recall_par_classe_knn, na.rm = TRUE)
+f1_knn <- mean(f1_par_classe_knn, na.rm = TRUE)
+
+metrics_knn <- c(
+  Accuracy = accuracy_knn,
+  Precision = precision_knn,
+  Recall = recall_knn,
+  F1 = f1_knn)
+metrics_knn
+```
+
+---
+## PARTIE IV – Arbre de classification (CART)
+```{r CART}
+library(rpart)
+
+diet <- data.frame(data_regime, gp)
+```
+
+```{r ArbreDefaut}
+resrpart <- rpart(gp~., data=diet)
+par(xpd=NA)
+plot(resrpart)
+text(resrpart, use.n=TRUE, cex=0.8)
+respredrpart <- predict(resrpart, type="class")
+mean(respredrpart==gp)
+```
+
+```{r ArbreComplet}
+resrpart_complet <- rpart(gp~., data=diet, control=rpart.control(minsplit=1))
+plot(resrpart_complet)
+text(resrpart_complet, use.n=TRUE, cex=0.7)
+```
+
+```{r Elagage}
+printcp(resrpart_complet)
+plotcp(resrpart_complet)
+
+resrpart_elag <- rpart(gp~., data=diet, control=rpart.control(minsplit=1, cp=0.02))
+plot(resrpart_elag)
+text(resrpart_elag, use.n=TRUE, cex=0.8)
+respredelag <- predict(resrpart_elag, type="class")
+mean(respredelag==gp)
+table(respredelag, gp)
+```
+
+```{r MetriqueCart}
+tab_cart <- table(Pred = respredelag, Reel = gp)
+
+accuracy_cart <- sum(diag(tab_cart)) / sum(tab_cart)
+precision_par_classe_cart <- diag(tab_cart) / rowSums(tab_cart)
+recall_par_classe_cart <- diag(tab_cart) / colSums(tab_cart)
+f1_par_classe_cart <- 2 * precision_par_classe_cart * recall_par_classe_cart / 
+  (precision_par_classe_cart + recall_par_classe_cart)
+
+precision_cart <- mean(precision_par_classe_cart, na.rm = TRUE)
+recall_cart <- mean(recall_par_classe_cart, na.rm = TRUE)
+f1_cart <- mean(f1_par_classe_cart, na.rm = TRUE)
+
+metrics_cart <- c(
+  Accuracy = accuracy_cart,
+  Precision = precision_cart,
+  Recall = recall_cart,
+  F1 = f1_cart)
+metrics_cart
+```
+
+---
+## GGPLOT
+```{r tableauMetrique}
+perf <- data.frame(
+  Methode = c("LDA", "kNN", "CART"),
+  Accuracy = c(accuracy_lda, accuracy_knn, accuracy_cart),
+  Precision = c(precision_lda, precision_knn, precision_cart),
+  Recall = c(recall_lda, recall_knn, recall_cart),
+  F1 = c(f1_lda, f1_knn, f1_cart)
+)
+perf
+```
+
+```{r tableauLong}
+library(tidyr)
+
+perf_long <- pivot_longer(
+  perf,
+  cols = c("Accuracy", "Precision", "Recall", "F1"),
+  names_to = "Indicateur",
+  values_to = "Valeur"
+)
+perf_long
+```
+
+```{r Heatmap}
+library(ggplot2)
+
+ggplot(perf_long, aes(x = Indicateur, y = Methode, fill = Valeur)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(Valeur, 3)), size = 4) +
+  labs(
+    title = "Comparaison des performances des méthodes de classification",
+    x = "Indicateur de performance",
+    y = "Méthode"
+  ) +
+  theme_minimal()
+```
+
