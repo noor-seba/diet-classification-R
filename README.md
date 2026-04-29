@@ -73,13 +73,6 @@ variables supplémentaires améliorerait les résultats.
 
 ---
 
-## 👥 Contribution
-
-Projet réalisé en groupe (Iman Oudkhiss, Noor Seba, Rania Lahyani).
-Ma contribution porte sur les parties **kNN et CART**.
-
----
-
 ## 👩‍💻 Auteure
 
 **Noor Seba** – Étudiante en Master Épidémiologie, Données de Santé & Biostatistique
