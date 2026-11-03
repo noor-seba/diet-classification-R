@@ -61,19 +61,29 @@ regroupe 7804 recettes accompagnées d'informations nutritionnelles.
 
 ## 📊 Résultats
 
-| Modèle | Accuracy | Points forts |
+| Modèle | Évaluation | Résultat |
 |---|---|---|
-| LDA | ~41.5% | Keto bien classé (68%), vegan correct (56%) |
-| kNN (k=15) | ~modérée | Stable, bon compromis biais-variance |
-| CART (élagué) | ~modérée | Interprétable, règles de décision lisibles |
+| LDA | Validation croisée 2 blocs × 100 répétitions | **41,4 %** de bonne classification (41,5 % sur l'ensemble des données) |
+| kNN (k = 15) | k choisi par validation croisée, puis test sur 25 % des données | Accuracy, précision, recall, F1 dans le tableau comparatif final |
+| CART (élagué, cp = 0,02) | Taux de bonne classification apparent (données d'apprentissage) | Accuracy, précision, recall, F1 dans le tableau comparatif final |
 
-**Conclusion :** Les trois modèles présentent des performances modérées. Les variables
-nutritionnelles seules ne suffisent pas à différencier les 5 régimes — l'ajout de
-variables supplémentaires améliorerait les résultats.
+**Détail LDA :** keto est le régime le mieux reconnu (≈ 68 %), suivi de vegan (≈ 56 %). Mediterranean (≈ 39 %) et dash (≈ 35 %) sont moins bien discriminés, paleo presque pas (≈ 5 %).
+
+**Conclusion :** les trois méthodes ont des performances modérées. Les macronutriments (protéines, glucides, lipides) se chevauchent fortement d'un régime à l'autre et ne suffisent pas à séparer les 5 classes. Des variables supplémentaires (type de cuisine, ingrédients, micronutriments) seraient nécessaires pour améliorer la discrimination.
+
+---
+
+## ▶️ Reproduire l'analyse
+
+1. Télécharger le jeu de données *All Diets* sur Kaggle et placer `All_Diets.csv` à la racine du dépôt
+2. Placer dans le même dossier les fonctions de validation croisée utilisées par le script (`constCV.R`, `lda_CV.R`, `knn_CV.r`, avec ce nom exact)
+3. Ouvrir `Projet_script.rmd` dans RStudio et le compiler (*Knit*)
+
+Packages : `install.packages(c("MASS", "class", "rpart", "ggplot2", "tidyr"))`
 
 ---
 
 ## 👩‍💻 Auteure
 
-**Noor Seba** – Étudiante en Master Épidémiologie, Données de Santé & Biostatistique
+**Noor Seba** – Étudiante en M2 Épidémiologie, Données de Santé & Biostatistique (parcours Data Analyst), Université de Montpellier
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Noor%20Seba-blue?logo=linkedin)](https://www.linkedin.com/in/noor-seba-260685369)
