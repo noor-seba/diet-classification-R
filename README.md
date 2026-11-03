@@ -61,11 +61,13 @@ regroupe 7804 recettes accompagnées d'informations nutritionnelles.
 
 ## 📊 Résultats
 
-| Modèle | Évaluation | Résultat |
-|---|---|---|
-| LDA | Validation croisée 2 blocs × 100 répétitions | **41,4 %** de bonne classification (41,5 % sur l'ensemble des données) |
-| kNN (k = 15) | k choisi par validation croisée, puis test sur 25 % des données | Accuracy, précision, recall, F1 dans le tableau comparatif final |
-| CART (élagué, cp = 0,02) | Taux de bonne classification apparent (données d'apprentissage) | Accuracy, précision, recall, F1 dans le tableau comparatif final |
+| Modèle | Évaluation |
+|---|---|
+| LDA | Validation croisée 2 blocs × 100 répétitions : **41,4 %** de bonne classification |
+| kNN (k = 15) | k choisi par validation croisée (4 blocs), puis évaluation sur un échantillon test de 25 % |
+| CART (élagué, cp = 0,02) | Arbre élagué, métriques calculées sur les données d'apprentissage |
+
+Les métriques détaillées (accuracy, précision, recall, F1) des trois modèles sont comparées dans le tableau et la heatmap en fin de script.
 
 **Détail LDA :** keto est le régime le mieux reconnu (≈ 68 %), suivi de vegan (≈ 56 %). Mediterranean (≈ 39 %) et dash (≈ 35 %) sont moins bien discriminés, paleo presque pas (≈ 5 %).
 
